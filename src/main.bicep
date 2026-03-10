@@ -1,5 +1,8 @@
 targetScope = 'subscription'
 
+import {VNetConfig} from './modules/network/vnet/vnet.types.bicep'
+import {SubnetConfig} from './modules/network/subnet/subnet.types.bicep'
+
 @description('The location where resources will be deployed.')
 @allowed([
   'eastus'
@@ -25,18 +28,6 @@ param tags object = {
   project: 'bicep-sample'
 }
 
-@description('Name of the virtual network')
-param vnetName string
-
-@description('Address space for the virtual network')
-param addressSpace array = ['10.0.0.0/16']
-
-@description('Name of the subnet')
-param subnetName string
-
-@description('Address prefix for the subnet')
-param subnetAddressPrefix string = '10.0.0.0/24'
-
 @description('Name of the storage account')
 param storageAccountName string
 
@@ -45,10 +36,14 @@ param storageAccountName string
 param storageSku string = 'Standard_LRS'
 
 
+@description('Configuration to create a virtual network')
+param vnetConfig  VNetConfig
+@description('Configurations to create a subnet in a virtual network')
+param subnetConfig SubnetConfig
 
 
 // Resource Group
-module rg './modules/resource-group.bicep' = {
+module rg './modules/platform/resource-group.bicep' = {
   name: 'resourceGroupDeployment'
   params: {
     resourceGroupName: resourceGroupName
@@ -58,42 +53,38 @@ module rg './modules/resource-group.bicep' = {
 }
 
 // VNet
-module vnet './modules/vnet.bicep' = {
+module vnet './modules/network/vnet/vnet.bicep' = {
   name: 'vnetDeployment'
   scope: resourceGroup(resourceGroupName)
   params: {
-    vnetName: vnetName
-    location: location
-    addressSpace: addressSpace
-    tags: tags
+    vnetConfig: vnetConfig
   }
 }
 
 // Subnets
-module subnetApp './modules/subnet.bicep' = {
+module subnetApp './modules/network/subnet/subnet.bicep' = {
   name: 'subnetAppDeployment'
   scope: resourceGroup(resourceGroupName)
-
   params: {
-    vnetName: vnetName
-    subnetName: subnetName
-    addressPrefix: subnetAddressPrefix
+   subnetConfig: subnetConfig
   }
 }
 
-module subnetDb './modules/subnet.bicep' = {
+module subnetDb './modules/network/subnet/subnet.bicep' = {
   name: 'subnetDbDeployment'
   scope: resourceGroup(resourceGroupName)
 
   params: {
-    vnetName: vnetName
+    subnetConfig:{
+      vnetName: subnetConfig.vnetName
     subnetName: 'db-subnet'
-    addressPrefix: subnetAddressPrefix
+    addressPrefix: subnetConfig.addressPrefix
+    }
   }
 }
 
 // Storage Account
-module storage './modules/storage-account.bicep' = {
+module storage './modules/data/storage-account.bicep' = {
   name: 'storageDeployment'
   scope: resourceGroup(resourceGroupName)
 
